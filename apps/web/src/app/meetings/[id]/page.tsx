@@ -886,8 +886,14 @@ export default function MeetingDetailPage() {
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
   };
 
-  // Browser view available for any active meeting bot (VNC runs in all bot containers)
-  const hasBrowserView = !!(['requested', 'joining', 'awaiting_admission', 'active'].includes(currentMeeting?.status));
+  // VNC is only addressable when the bot API returned a browser session token.
+  // Status alone is not enough: legacy/expired active meetings can remain in
+  // the database without a live browser, and rendering /b/<id>/vnc then
+  // produces a misleading 404 iframe in the meeting detail page.
+  const hasBrowserView = !!(
+    currentMeeting?.data?.session_token &&
+    ['requested', 'joining', 'awaiting_admission', 'active'].includes(currentMeeting?.status)
+  );
 
   const browserViewIframe = hasBrowserView && viewMode === 'browser' ? (() => {
     const meetingId = currentMeeting.id;
