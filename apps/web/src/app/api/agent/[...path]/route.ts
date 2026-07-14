@@ -5,6 +5,16 @@ const AGENT_API_URL = process.env.AGENT_API_URL || "http://localhost:8100";
 // Service-to-service token — must match BOT_API_TOKEN in the agent-api container
 const AGENT_API_TOKEN = process.env.AGENT_API_TOKEN || "";
 
+function resolveAgentPath(path: string[], url: URL): { path: string; method?: string } {
+  const legacyPath = path.join("/");
+  // Keep the dashboard's stable contract while speaking the current Agent API
+  // contract behind it. These aliases are the only legacy surface retained.
+  if (legacyPath === "workspace/tree") return { path: "workspace/files" };
+  if (legacyPath === "workspace/file") return { path: "workspace/file" };
+  if (legacyPath === "workspace/commit") return { path: "../internal/workspace/save" };
+  return { path: legacyPath };
+}
+
 async function getUserToken(): Promise<string> {
   const cookieStore = await cookies();
   return cookieStore.get("vexa-token")?.value || "";
@@ -25,7 +35,13 @@ async function safeJsonResponse(resp: globalThis.Response): Promise<Response> {
 export async function GET(req: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   const { path } = await context.params;
   const url = new URL(req.url);
-  const target = `${AGENT_API_URL}/api/${path.join("/")}${url.search}`;
+  const resolved = resolveAgentPath(path, url);
+  if (path.join("/") === "workspace/diff") {
+    return Response.json({ has_changes: false, summary: "" });
+  }
+  const target = resolved.path.startsWith("../")
+    ? `${AGENT_API_URL}/${resolved.path.slice(3)}${url.search}`
+    : `${AGENT_API_URL}/api/${resolved.path}${url.search}`;
   const resp = await fetch(target, {
     headers: { "Content-Type": "application/json", "X-API-Key": AGENT_API_TOKEN },
   });
@@ -36,7 +52,10 @@ export async function POST(req: NextRequest, context: { params: Promise<{ path: 
   const { path } = await context.params;
   const url = new URL(req.url);
   const rawBody = await req.text();
-  const target = `${AGENT_API_URL}/api/${path.join("/")}${url.search}`;
+  const resolved = resolveAgentPath(path, url);
+  const target = resolved.path.startsWith("../")
+    ? `${AGENT_API_URL}/${resolved.path.slice(3)}${url.search}`
+    : `${AGENT_API_URL}/api/${resolved.path}${url.search}`;
 
   // For chat endpoint: inject user's bot token into request so agent container gets it
   if (path.join("/") === "chat") {
@@ -61,7 +80,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ path: 
   }
 
   const resp = await fetch(target, {
-    method: "POST",
+    method: path.join("/") === "workspace/commit" ? "POST" : "POST",
     headers: { "Content-Type": "application/json", "X-API-Key": AGENT_API_TOKEN },
     body: rawBody,
   });
@@ -72,9 +91,12 @@ export async function PUT(req: NextRequest, context: { params: Promise<{ path: s
   const { path } = await context.params;
   const url = new URL(req.url);
   const body = await req.text();
-  const target = `${AGENT_API_URL}/api/${path.join("/")}${url.search}`;
+  const resolved = resolveAgentPath(path, url);
+  const target = resolved.path.startsWith("../")
+    ? `${AGENT_API_URL}/${resolved.path.slice(3)}${url.search}`
+    : `${AGENT_API_URL}/api/${resolved.path}${url.search}`;
   const resp = await fetch(target, {
-    method: "PUT",
+    method: path.join("/") === "workspace/file" ? "POST" : "PUT",
     headers: { "Content-Type": "application/json", "X-API-Key": AGENT_API_TOKEN },
     body,
   });
