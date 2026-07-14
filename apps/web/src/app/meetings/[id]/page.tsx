@@ -112,9 +112,12 @@ function BrowserPreviewProbe({
 
     const controller = new AbortController();
     onAvailabilityChange(null);
-    const vncUrl = `/b/${sessionToken}/vnc/vnc.html?autoconnect=true&resize=scale&reconnect=true&view_only=true&path=b/${sessionToken}/vnc/websockify`;
-    fetch(vncUrl, { signal: controller.signal, cache: "no-store" })
-      .then((response) => onAvailabilityChange(response.ok))
+    fetch(`/api/browser-preview/${encodeURIComponent(sessionToken)}`, {
+      signal: controller.signal,
+      cache: "no-store",
+    })
+      .then((response) => response.json())
+      .then((result) => onAvailabilityChange(result.available === true))
       .catch(() => onAvailabilityChange(false));
 
     return () => controller.abort();
