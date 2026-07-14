@@ -1,0 +1,32 @@
+FROM node:22-alpine AS builder
+
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY packages ./packages
+COPY apps/web/package.json ./apps/web/package.json
+COPY deploy/docker/grainbox-entrypoint.sh ./deploy/docker/grainbox-entrypoint.sh
+RUN npm ci --ignore-scripts
+COPY apps/web ./apps/web
+
+ARG VEXA_API_URL=http://host.docker.internal:8056
+ENV VEXA_API_URL=$VEXA_API_URL
+RUN npm -w apps/web run build
+
+FROM node:22-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+COPY --from=builder /app/apps/web/.next/standalone ./
+COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
+COPY --from=builder /app/apps/web/public ./apps/web/public
+COPY --from=builder /app/deploy/docker/grainbox-entrypoint.sh ./grainbox-entrypoint.sh
+RUN chmod +x ./grainbox-entrypoint.sh && chown -R nextjs:nodejs /app
+
+USER nextjs
+EXPOSE 3000
+ENTRYPOINT ["/app/grainbox-entrypoint.sh"]
