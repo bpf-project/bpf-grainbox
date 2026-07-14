@@ -4,7 +4,7 @@ import { VexaAPIError, vexaAPI } from "@/lib/api";
 import {
   type TranscriptManager,
   createTranscriptManager,
-} from "@vexaai/transcript-rendering";
+} from "@bpf-project/grainbox-transcript-rendering";
 
 interface MeetingDataUpdate {
   name?: string;

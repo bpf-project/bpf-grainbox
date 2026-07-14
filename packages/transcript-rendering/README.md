@@ -84,7 +84,7 @@ import {
   deduplicateSegments,
   groupSegments,
   type TranscriptSegment,
-} from '@vexaai/transcript-rendering';
+} from '@bpf-project/grainbox-transcript-rendering';
 
 // Maintain a segment map across WebSocket messages
 const segments = new Map<string, TranscriptSegment>();
@@ -105,4 +105,4 @@ ws.on('message', (data) => {
 
 ### Package
 
-Published as `@vexaai/transcript-rendering`. Dual ESM/CJS output via tsup. Apache-2.0 license.
+Owned and published as `@bpf-project/grainbox-transcript-rendering`. Dual ESM/CJS output via tsup. Apache-2.0 license.

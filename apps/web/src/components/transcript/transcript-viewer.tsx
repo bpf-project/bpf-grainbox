@@ -33,7 +33,7 @@ import { cn, parseUTCTimestamp } from "@/lib/utils";
 import { vexaAPI } from "@/lib/api";
 import { toast } from "sonner";
 import { LanguagePicker } from "@/components/language-picker";
-import { type SegmentGroup, deduplicateByIdentity, sortByStartTime } from "@vexaai/transcript-rendering";
+import { type SegmentGroup, deduplicateByIdentity, sortByStartTime } from "@bpf-project/grainbox-transcript-rendering";
 import { format } from "date-fns";
 
 // Linkify URLs in chat message text — splits text into plain strings and clickable <a> elements

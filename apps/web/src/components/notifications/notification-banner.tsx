@@ -15,8 +15,6 @@ interface Notification {
 }
 
 const DISMISSED_KEY = "dismissed-notifications";
-const BLOG_URL =
-  process.env.NEXT_PUBLIC_BLOG_URL || "https://blog.vexa.ai";
 
 function getDismissedIds(): string[] {
   if (typeof window === "undefined") return [];
@@ -60,11 +58,16 @@ export function NotificationBanner() {
 
     async function fetchNotifications() {
       try {
-        const resp = await fetch(`${BLOG_URL}/notifications.json`, {
+        // Fetch through the server route so the browser does not depend on
+        // the CMS exposing permissive CORS headers.
+        const resp = await fetch("/api/notifications", {
           cache: "no-store",
         });
         if (!resp.ok) return;
-        const data: Notification[] = await resp.json();
+        const payload = (await resp.json()) as
+          | Notification[]
+          | { notifications?: Notification[] };
+        const data = Array.isArray(payload) ? payload : payload.notifications || [];
         const now = new Date();
         const active = data.filter((n) => {
           const from = new Date(n.active_from);

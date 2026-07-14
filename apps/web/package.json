@@ -12,7 +12,7 @@
     "test": "vitest run",
     "pretypecheck": "node scripts/generate-release-version.js",
     "typecheck": "tsc --noEmit",
-    "sync-packages": "test -d ../../packages/transcript-rendering && rm -rf node_modules/@vexaai/transcript-rendering && cp -r ../../packages/transcript-rendering node_modules/@vexaai/transcript-rendering || true",
+    "sync-packages": "test -d ../../packages/transcript-rendering && rm -rf node_modules/@bpf-project/grainbox-transcript-rendering && mkdir -p node_modules/@bpf-project && cp -r ../../packages/transcript-rendering node_modules/@bpf-project/grainbox-transcript-rendering || true",
     "generate-release-version": "node scripts/generate-release-version.js"
   },
   "dependencies": {
@@ -40,7 +40,7 @@
     "@tiptap/react": "^3.20.4",
     "@tiptap/starter-kit": "^3.20.4",
     "@types/turndown": "^5.0.6",
-    "@vexaai/transcript-rendering": "0.4.1",
+    "@bpf-project/grainbox-transcript-rendering": "0.4.1",
     "ai": "^5.0.110",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

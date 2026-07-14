@@ -4,7 +4,7 @@ import {
   sortByStartTime,
   addSegment,
   bootstrapSegments,
-} from "@vexaai/transcript-rendering";
+} from "@bpf-project/grainbox-transcript-rendering";
 
 interface LiveMeetingState {
   // Current live meeting

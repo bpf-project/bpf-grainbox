@@ -1,5 +1,5 @@
 {
-  "name": "@vexaai/transcript-rendering",
+  "name": "@bpf-project/grainbox-transcript-rendering",
   "version": "0.4.1",
   "description": "Real-time transcript state management: confirmed/pending two-map model, deduplication, speaker grouping",
   "type": "module",
@@ -19,14 +19,14 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/Vexa-ai/vexa"
+    "url": "https://github.com/bpf-project/bpf-grainbox"
   },
   "keywords": [
     "transcript",
     "deduplication",
     "websocket",
     "speech-to-text",
-    "vexa"
+    "grainbox"
   ],
   "scripts": {
     "build": "tsup",
