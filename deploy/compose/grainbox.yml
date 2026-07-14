@@ -1,0 +1,27 @@
+services:
+  grainbox-web:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.web
+      args:
+        VEXA_API_URL: ${VEXA_API_URL:-http://host.docker.internal:8056}
+    environment:
+      NODE_ENV: production
+      VEXA_API_URL: ${VEXA_API_URL:-http://host.docker.internal:8056}
+      VEXA_ADMIN_API_URL: ${VEXA_ADMIN_API_URL:-http://host.docker.internal:8056}
+      VEXA_ADMIN_API_KEY: ${VEXA_ADMIN_API_KEY:?VEXA_ADMIN_API_KEY is required}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://grainbox.easycasual.app}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-https://grainbox.easycasual.app}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    ports:
+      - "${GRAINBOX_WEB_PORT:-3010}:3000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
