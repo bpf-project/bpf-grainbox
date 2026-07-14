@@ -12,7 +12,8 @@ import {
 
 interface MarkdownEditorProps {
   content: string;
-  onChange: (content: string) => void;
+  onChange?: (content: string) => void;
+  readOnly?: boolean;
 }
 
 // Convert markdown to HTML for TipTap (basic conversion)
@@ -118,11 +119,12 @@ function ToolbarButton({
   );
 }
 
-export function MarkdownEditor({ content, onChange }: MarkdownEditorProps) {
+export function MarkdownEditor({ content, onChange = () => undefined, readOnly = false }: MarkdownEditorProps) {
   const isInternalUpdate = useRef(false);
 
   const editor = useEditor({
     immediatelyRender: false,
+    editable: !readOnly,
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
@@ -158,7 +160,7 @@ export function MarkdownEditor({ content, onChange }: MarkdownEditorProps) {
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
-      <div className="flex items-center gap-0.5 px-2 py-1 border-b flex-wrap">
+      <div className={`flex items-center gap-0.5 px-2 py-1 border-b flex-wrap ${readOnly ? "pointer-events-none opacity-50" : ""}`}>
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
           active={editor.isActive("heading", { level: 1 })}

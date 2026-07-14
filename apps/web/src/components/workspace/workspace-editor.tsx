@@ -2,11 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
-  Save, GitCommit, FolderOpen, FileText, FilePlus, Trash2,
-  ChevronRight, ChevronDown, Loader2, RefreshCw, FolderPlus,
+  FolderOpen, FileText, Trash2, ChevronRight, ChevronDown, Loader2, RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/auth-store";
@@ -109,19 +107,13 @@ export function WorkspaceEditor() {
   const [content, setContent] = useState("");
   const [originalContent, setOriginalContent] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isCommitting, setIsCommitting] = useState(false);
-  const [changedCount, setChangedCount] = useState(0);
-  const [commitMsg, setCommitMsg] = useState("");
-  const [newFilePath, setNewFilePath] = useState("");
-  const [showNewFile, setShowNewFile] = useState(false);
 
   const loadTree = useCallback(async () => {
     try {
       const resp = await fetch(`${AGENT_API}/workspace/tree?user_id=${userId}`);
       if (!resp.ok) return;
       const data = await resp.json();
-      const files: string[] = data.files || [];
+      const files: string[] = Array.isArray(data.files) ? data.files : [];
       setTree(buildTree(files));
     } catch {}
   }, [userId]);
@@ -148,70 +140,6 @@ export function WorkspaceEditor() {
     }
   }, []);
 
-  const saveFile = useCallback(async () => {
-    if (!selectedFile) return;
-    setIsSaving(true);
-    try {
-      const resp = await fetch(`${AGENT_API}/workspace/file`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: userId, path: selectedFile, content }),
-      });
-      if (!resp.ok) throw new Error("Save failed");
-      setOriginalContent(content);
-      toast.success("Saved");
-      setChangedCount(0);
-    } catch {
-      toast.error("Failed to save");
-    } finally {
-      setIsSaving(false);
-    }
-  }, [selectedFile, content, userId]);
-
-  const commitChanges = useCallback(async () => {
-    setIsCommitting(true);
-    try {
-      const resp = await fetch(`${AGENT_API}/workspace/commit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: userId, message: commitMsg || "Update workspace" }),
-      });
-      if (!resp.ok) throw new Error("Commit failed");
-      toast.success("Workspace synced");
-      setCommitMsg("");
-      setChangedCount(0);
-      setChangedCount(0);
-    } catch {
-      toast.error("Commit failed");
-    } finally {
-      setIsCommitting(false);
-    }
-  }, [commitMsg, userId]);
-
-  const createFile = useCallback(async () => {
-    const path = newFilePath.trim();
-    if (!path) return;
-    try {
-      const resp = await fetch(`${AGENT_API}/workspace/file`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: userId, path, content: "" }),
-      });
-      if (!resp.ok) throw new Error("Create failed");
-      setShowNewFile(false);
-      setNewFilePath("");
-      loadTree();
-      loadFile(path);
-    } catch {
-      toast.error("Failed to create file");
-    }
-  }, [newFilePath, loadTree, loadFile, userId]);
-
-  const deleteFile = useCallback(async (path: string) => {
-    // Delete via writing empty + noting in UI (no delete endpoint yet)
-    toast.info(`Delete not implemented yet: ${path}`);
-  }, []);
-
   const isDirty = content !== originalContent;
   const isMarkdown = selectedFile?.endsWith(".md");
 
@@ -224,31 +152,10 @@ export function WorkspaceEditor() {
             <FolderOpen className="h-4 w-4 text-muted-foreground" />
             <span className="text-xs font-medium">Workspace</span>
           </div>
-          <div className="flex gap-0.5">
-            <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setShowNewFile(true)}>
-              <FilePlus className="h-3.5 w-3.5" />
-            </Button>
-            <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={loadTree}>
-              <RefreshCw className="h-3.5 w-3.5" />
-            </Button>
-          </div>
+          <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={loadTree}>
+            <RefreshCw className="h-3.5 w-3.5" />
+          </Button>
         </div>
-
-        {showNewFile && (
-          <div className="p-2 border-b flex gap-1">
-            <Input
-              value={newFilePath}
-              onChange={(e) => setNewFilePath(e.target.value)}
-              placeholder="path/to/file.md"
-              className="h-7 text-xs"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter") createFile();
-                if (e.key === "Escape") setShowNewFile(false);
-              }}
-            />
-          </div>
-        )}
 
         <div className="flex-1 overflow-y-auto py-1">
           {tree.map((node) => (
@@ -258,36 +165,13 @@ export function WorkspaceEditor() {
               depth={0}
               selectedPath={selectedFile}
               onSelect={loadFile}
-              onDelete={deleteFile}
+              onDelete={() => undefined}
             />
           ))}
         </div>
 
-        {/* Git panel */}
-        <div className="border-t p-2 space-y-1">
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <GitCommit className="h-3 w-3" />
-            <span>{changedCount} unsaved file{changedCount !== 1 ? "s" : ""}</span>
-          </div>
-          {changedCount > 0 && (
-            <div className="flex gap-1">
-              <Input
-                value={commitMsg}
-                onChange={(e) => setCommitMsg(e.target.value)}
-                placeholder="Sync note..."
-                className="h-7 text-xs flex-1"
-                onKeyDown={(e) => e.key === "Enter" && commitChanges()}
-              />
-              <Button
-                size="sm"
-                className="h-7 text-xs px-2"
-                onClick={commitChanges}
-                disabled={isCommitting}
-              >
-                {isCommitting ? <Loader2 className="h-3 w-3 animate-spin" /> : "Sync"}
-              </Button>
-            </div>
-          )}
+        <div className="border-t p-2 text-[11px] text-muted-foreground">
+          Read-only workspace: the deployed Agent API exposes tree/file reads and Git sync, but not arbitrary file edits.
         </div>
       </div>
 
@@ -302,15 +186,7 @@ export function WorkspaceEditor() {
                 <span className="text-sm font-mono truncate">{selectedFile}</span>
                 {isDirty && <Badge variant="secondary" className="text-xs">Modified</Badge>}
               </div>
-              <Button
-                size="sm"
-                onClick={saveFile}
-                disabled={!isDirty || isSaving}
-                className="gap-1"
-              >
-                {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-                Save
-              </Button>
+              <Badge variant="outline" className="text-xs">Read-only</Badge>
             </div>
 
             {/* Editor */}
@@ -320,11 +196,11 @@ export function WorkspaceEditor() {
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
               ) : isMarkdown ? (
-                <MarkdownEditor content={content} onChange={(next) => { setContent(next); setChangedCount(next === originalContent ? 0 : 1); }} />
+                <MarkdownEditor content={content} readOnly />
               ) : (
                 <textarea
                   value={content}
-                  onChange={(e) => { setContent(e.target.value); setChangedCount(e.target.value === originalContent ? 0 : 1); }}
+                  readOnly
                   className="w-full h-full p-4 font-mono text-sm bg-background resize-none focus:outline-none"
                   spellCheck={false}
                 />
@@ -335,8 +211,8 @@ export function WorkspaceEditor() {
           <div className="flex items-center justify-center h-full text-muted-foreground">
             <div className="text-center">
               <FolderOpen className="h-10 w-10 mx-auto mb-2" />
-              <p className="text-sm">Select a file to edit</p>
-              <p className="text-xs mt-1">Or create a new file with the + button</p>
+              <p className="text-sm">Select a file to inspect</p>
+              <p className="text-xs mt-1">Workspace editing is pending an Agent API write contract.</p>
             </div>
           </div>
         )}
