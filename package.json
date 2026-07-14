@@ -6,7 +6,10 @@
   "packageManager": "npm@10",
   "workspaces": ["packages/*", "apps/*"],
   "scripts": {
+    "build:transcript-rendering": "npm -w packages/transcript-rendering run build",
+    "pretest": "npm run build:transcript-rendering",
     "test": "vitest run && npm -w apps/web run test",
+    "pretypecheck": "npm run build:transcript-rendering",
     "typecheck": "tsc --noEmit && npm -w apps/web run typecheck",
     "build:web": "npm -w apps/web run build"
   },
