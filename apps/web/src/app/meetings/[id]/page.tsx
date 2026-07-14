@@ -890,15 +890,15 @@ export default function MeetingDetailPage() {
   // Status alone is not enough: legacy/expired active meetings can remain in
   // the database without a live browser, and rendering /b/<id>/vnc then
   // produces a misleading 404 iframe in the meeting detail page.
+  const sessionToken = currentMeeting?.data?.session_token as string | undefined;
   const hasBrowserView = !!(
-    currentMeeting?.data?.session_token &&
+    sessionToken &&
     ['requested', 'joining', 'awaiting_admission', 'active'].includes(currentMeeting?.status)
   );
 
   const browserViewIframe = hasBrowserView && viewMode === 'browser' ? (() => {
-    const meetingId = currentMeeting.id;
     // VNC loads from same origin — nginx proxies /b/ routes to the gateway
-    const vncUrl = `/b/${meetingId}/vnc/vnc.html?autoconnect=true&resize=scale&reconnect=true&view_only=false&path=b/${meetingId}/vnc/websockify`;
+    const vncUrl = `/b/${sessionToken}/vnc/vnc.html?autoconnect=true&resize=scale&reconnect=true&view_only=false&path=b/${sessionToken}/vnc/websockify`;
     return (
       <div className="flex-1 overflow-hidden">
         <iframe
@@ -911,7 +911,7 @@ export default function MeetingDetailPage() {
   })() : null;
 
   const botPreviewUrl = hasBrowserView
-    ? `/b/${currentMeeting.id}/vnc/vnc.html?autoconnect=true&resize=scale&reconnect=true&view_only=true&path=b/${currentMeeting.id}/vnc/websockify`
+    ? `/b/${sessionToken}/vnc/vnc.html?autoconnect=true&resize=scale&reconnect=true&view_only=true&path=b/${sessionToken}/vnc/websockify`
     : null;
 
   return (
