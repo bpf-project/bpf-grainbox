@@ -515,11 +515,9 @@ function GitWorkspaceCard() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    // Load from server
-    fetch(withBasePath("/api/vexa/user/workspace-git")).then(async (r) => {
-      // GET doesn't exist — load from user profile data instead
-    }).catch(() => {});
-    // Also check localStorage as fallback
+    // The legacy Vexa workspace-git endpoint is not part of the v0.12 API.
+    // Keep this optional browser-side setting aligned with Join Meeting,
+    // without issuing a guaranteed 405 on every Profile visit.
     try {
       const git = JSON.parse(localStorage.getItem("vexa-browser-git") || "{}");
       if (git.repo) {
@@ -534,13 +532,6 @@ function GitWorkspaceCard() {
   async function handleSave() {
     setIsSaving(true);
     try {
-      const response = await fetch(withBasePath("/api/vexa/user/workspace-git"), {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ repo, token, branch }),
-      });
-      if (!response.ok) throw new Error(await response.text());
-      // Also save to localStorage for the join modal to read
       localStorage.setItem("vexa-browser-git", JSON.stringify({ repo, token, branch }));
       setSaved(true);
       toast.success("Git workspace saved");
@@ -553,7 +544,6 @@ function GitWorkspaceCard() {
 
   async function handleClear() {
     try {
-      await fetch(withBasePath("/api/vexa/user/workspace-git"), { method: "DELETE" });
       localStorage.removeItem("vexa-browser-git");
       setRepo("");
       setToken("");
