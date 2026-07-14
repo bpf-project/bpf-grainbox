@@ -20,4 +20,6 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
-
+      - run: npm run check:feature-matrix
+      - run: npm run build:web
+      - run: docker build -f deploy/docker/Dockerfile.web -t bpf-grainbox:ci .
