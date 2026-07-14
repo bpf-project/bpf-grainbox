@@ -95,6 +95,34 @@ import { getCookie, setCookie } from "@/lib/cookies";
 import { useRuntimeConfig } from "@/hooks/use-runtime-config";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
+function BrowserPreviewProbe({
+  enabled,
+  sessionToken,
+  onAvailabilityChange,
+}: {
+  enabled: boolean;
+  sessionToken?: string;
+  onAvailabilityChange: (available: boolean | null) => void;
+}) {
+  useEffect(() => {
+    if (!enabled || !sessionToken) {
+      onAvailabilityChange(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    onAvailabilityChange(null);
+    const vncUrl = `/b/${sessionToken}/vnc/vnc.html?autoconnect=true&resize=scale&reconnect=true&view_only=true&path=b/${sessionToken}/vnc/websockify`;
+    fetch(vncUrl, { signal: controller.signal, cache: "no-store" })
+      .then((response) => onAvailabilityChange(response.ok))
+      .catch(() => onAvailabilityChange(false));
+
+    return () => controller.abort();
+  }, [enabled, sessionToken, onAvailabilityChange]);
+
+  return null;
+}
+
 export default function MeetingDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -678,29 +706,13 @@ export default function MeetingDetailPage() {
   const meetingStatus = currentMeeting?.status;
 
   // Only expose VNC when the bot API returned a session token and the session
-  // is still in a live state. This hook must remain above the loading return
-  // below so the component keeps a stable hook order during hydration.
+  // is still in a live state. The probe itself lives in a child so this page
+  // keeps a stable hook order while the meeting loads.
   const sessionToken = currentMeeting?.data?.session_token as string | undefined;
   const hasBrowserView = !!(
     sessionToken &&
     ['requested', 'joining', 'awaiting_admission', 'active'].includes(currentMeeting?.status || '')
   );
-  useEffect(() => {
-    if (!hasBrowserView || !sessionToken) {
-      setBrowserPreviewAvailable(false);
-      return;
-    }
-
-    const controller = new AbortController();
-    setBrowserPreviewAvailable(null);
-    const vncUrl = `/b/${sessionToken}/vnc/vnc.html?autoconnect=true&resize=scale&reconnect=true&view_only=true&path=b/${sessionToken}/vnc/websockify`;
-    fetch(vncUrl, { signal: controller.signal, cache: "no-store" })
-      .then((response) => setBrowserPreviewAvailable(response.ok))
-      .catch(() => setBrowserPreviewAvailable(false));
-
-    return () => controller.abort();
-  }, [hasBrowserView, sessionToken]);
-
   useEffect(() => {
     // Active browser sessions use VNC — no transcript fetch needed.
     // Fetching transcripts while active would hit /transcripts which requires 'tx' scope;
@@ -931,6 +943,11 @@ export default function MeetingDetailPage() {
 
   return (
     <div className="space-y-2 lg:space-y-6 h-full flex flex-col">
+      <BrowserPreviewProbe
+        enabled={hasBrowserView}
+        sessionToken={sessionToken}
+        onAvailabilityChange={setBrowserPreviewAvailable}
+      />
       {/* Desktop Header */}
       <div className="hidden lg:flex items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-4 flex-1 min-w-0">
