@@ -677,6 +677,30 @@ export default function MeetingDetailPage() {
   const meetingNumericId = currentMeeting?.id ? String(currentMeeting.id) : undefined;
   const meetingStatus = currentMeeting?.status;
 
+  // Only expose VNC when the bot API returned a session token and the session
+  // is still in a live state. This hook must remain above the loading return
+  // below so the component keeps a stable hook order during hydration.
+  const sessionToken = currentMeeting?.data?.session_token as string | undefined;
+  const hasBrowserView = !!(
+    sessionToken &&
+    ['requested', 'joining', 'awaiting_admission', 'active'].includes(currentMeeting?.status || '')
+  );
+  useEffect(() => {
+    if (!hasBrowserView || !sessionToken) {
+      setBrowserPreviewAvailable(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setBrowserPreviewAvailable(null);
+    const vncUrl = `/b/${sessionToken}/vnc/vnc.html?autoconnect=true&resize=scale&reconnect=true&view_only=true&path=b/${sessionToken}/vnc/websockify`;
+    fetch(vncUrl, { signal: controller.signal, cache: "no-store" })
+      .then((response) => setBrowserPreviewAvailable(response.ok))
+      .catch(() => setBrowserPreviewAvailable(false));
+
+    return () => controller.abort();
+  }, [hasBrowserView, sessionToken]);
+
   useEffect(() => {
     // Active browser sessions use VNC — no transcript fetch needed.
     // Fetching transcripts while active would hit /transcripts which requires 'tx' scope;
@@ -886,32 +910,6 @@ export default function MeetingDetailPage() {
     const mins = minutes % 60;
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
   };
-
-  // VNC is only addressable when the bot API returned a browser session token.
-  // Status alone is not enough: legacy/expired active meetings can remain in
-  // the database without a live browser, and rendering /b/<id>/vnc then
-  // produces a misleading 404 iframe in the meeting detail page.
-  const sessionToken = currentMeeting?.data?.session_token as string | undefined;
-  const hasBrowserView = !!(
-    sessionToken &&
-    ['requested', 'joining', 'awaiting_admission', 'active'].includes(currentMeeting?.status)
-  );
-
-  useEffect(() => {
-    if (!hasBrowserView || !sessionToken) {
-      setBrowserPreviewAvailable(false);
-      return;
-    }
-
-    const controller = new AbortController();
-    setBrowserPreviewAvailable(null);
-    const vncUrl = `/b/${sessionToken}/vnc/vnc.html?autoconnect=true&resize=scale&reconnect=true&view_only=true&path=b/${sessionToken}/vnc/websockify`;
-    fetch(vncUrl, { signal: controller.signal, cache: "no-store" })
-      .then((response) => setBrowserPreviewAvailable(response.ok))
-      .catch(() => setBrowserPreviewAvailable(false));
-
-    return () => controller.abort();
-  }, [hasBrowserView, sessionToken]);
 
   const browserViewIframe = hasBrowserView && browserPreviewAvailable === true && viewMode === 'browser' ? (() => {
     // VNC loads from same origin — nginx proxies /b/ routes to the gateway
