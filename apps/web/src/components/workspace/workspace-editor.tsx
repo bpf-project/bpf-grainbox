@@ -126,22 +126,9 @@ export function WorkspaceEditor() {
     } catch {}
   }, [userId]);
 
-  const loadDiff = useCallback(async () => {
-    try {
-      const resp = await fetch(`${AGENT_API}/workspace/diff?user_id=${userId}`);
-      if (!resp.ok) return;
-      const data = await resp.json();
-      // Count changed files from summary (lines with | character)
-      const summary = data.summary || "";
-      const changedLines = summary.split("\n").filter((l: string) => l.includes("|")).length;
-      setChangedCount(data.has_changes ? Math.max(changedLines, 1) : 0);
-    } catch {}
-  }, [userId]);
-
   useEffect(() => {
     loadTree();
-    loadDiff();
-  }, [loadTree, loadDiff]);
+  }, [loadTree]);
 
   const loadFile = useCallback(async (path: string) => {
     setIsLoading(true);
@@ -173,13 +160,13 @@ export function WorkspaceEditor() {
       if (!resp.ok) throw new Error("Save failed");
       setOriginalContent(content);
       toast.success("Saved");
-      loadDiff();
+      setChangedCount(0);
     } catch {
       toast.error("Failed to save");
     } finally {
       setIsSaving(false);
     }
-  }, [selectedFile, content, loadDiff, userId]);
+  }, [selectedFile, content, userId]);
 
   const commitChanges = useCallback(async () => {
     setIsCommitting(true);
@@ -190,16 +177,16 @@ export function WorkspaceEditor() {
         body: JSON.stringify({ user_id: userId, message: commitMsg || "Update workspace" }),
       });
       if (!resp.ok) throw new Error("Commit failed");
-      toast.success("Committed and synced");
+      toast.success("Workspace synced");
       setCommitMsg("");
       setChangedCount(0);
-      loadDiff();
+      setChangedCount(0);
     } catch {
       toast.error("Commit failed");
     } finally {
       setIsCommitting(false);
     }
-  }, [commitMsg, loadDiff, userId]);
+  }, [commitMsg, userId]);
 
   const createFile = useCallback(async () => {
     const path = newFilePath.trim();
@@ -280,14 +267,14 @@ export function WorkspaceEditor() {
         <div className="border-t p-2 space-y-1">
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <GitCommit className="h-3 w-3" />
-            <span>{changedCount} changed file{changedCount !== 1 ? "s" : ""}</span>
+            <span>{changedCount} unsaved file{changedCount !== 1 ? "s" : ""}</span>
           </div>
           {changedCount > 0 && (
             <div className="flex gap-1">
               <Input
                 value={commitMsg}
                 onChange={(e) => setCommitMsg(e.target.value)}
-                placeholder="Commit message..."
+                placeholder="Sync note..."
                 className="h-7 text-xs flex-1"
                 onKeyDown={(e) => e.key === "Enter" && commitChanges()}
               />
@@ -297,7 +284,7 @@ export function WorkspaceEditor() {
                 onClick={commitChanges}
                 disabled={isCommitting}
               >
-                {isCommitting ? <Loader2 className="h-3 w-3 animate-spin" /> : "Commit"}
+                {isCommitting ? <Loader2 className="h-3 w-3 animate-spin" /> : "Sync"}
               </Button>
             </div>
           )}
@@ -333,11 +320,11 @@ export function WorkspaceEditor() {
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
               ) : isMarkdown ? (
-                <MarkdownEditor content={content} onChange={setContent} />
+                <MarkdownEditor content={content} onChange={(next) => { setContent(next); setChangedCount(next === originalContent ? 0 : 1); }} />
               ) : (
                 <textarea
                   value={content}
-                  onChange={(e) => setContent(e.target.value)}
+                  onChange={(e) => { setContent(e.target.value); setChangedCount(e.target.value === originalContent ? 0 : 1); }}
                   className="w-full h-full p-4 font-mono text-sm bg-background resize-none focus:outline-none"
                   spellCheck={false}
                 />
