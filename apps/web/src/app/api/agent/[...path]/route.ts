@@ -9,9 +9,11 @@ type AgentRoute = { path: string; prefix: "api" | "root" };
 
 function resolveAgentPath(path: string[]): AgentRoute {
   const legacyPath = path.join("/");
-  if (legacyPath === "workspace/tree") return { path: "workspace/files", prefix: "api" };
+  // v0.12 exposes the tree at /api/workspace/tree. The old adapter used the
+  // removed /api/workspace/files endpoint, which made the workspace screen
+  // fail with a 405/404 against the deployed agent-api.
+  if (legacyPath === "workspace/tree") return { path: "workspace/tree", prefix: "api" };
   if (legacyPath === "workspace/file") return { path: "workspace/file", prefix: "api" };
-  if (legacyPath === "workspace/commit") return { path: "internal/workspace/save", prefix: "root" };
   return { path: legacyPath, prefix: "api" };
 }
 
@@ -40,7 +42,11 @@ export async function GET(req: NextRequest, context: { params: Promise<{ path: s
   const { path } = await context.params;
   const url = new URL(req.url);
   if (path.join("/") === "workspace/diff") {
-    return Response.json({ supported: false, has_changes: false, summary: "" });
+    return Response.json({
+      supported: false,
+      has_changes: false,
+      summary: "The v0.12 Agent API does not expose a workspace diff endpoint.",
+    });
   }
   const target = agentUrl(resolveAgentPath(path), url.search);
   const resp = await fetch(target, {
@@ -52,6 +58,12 @@ export async function GET(req: NextRequest, context: { params: Promise<{ path: s
 export async function POST(req: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   const { path } = await context.params;
   const url = new URL(req.url);
+  if (path.join("/") === "workspace/commit") {
+    return Response.json(
+      { error: "workspace_commit_unsupported", detail: "The v0.12 Agent API exposes workspace reads and Git push/pull, not arbitrary file commits." },
+      { status: 501 },
+    );
+  }
   const rawBody = await req.text();
   const target = agentUrl(resolveAgentPath(path), url.search);
 
