@@ -130,6 +130,7 @@ export default function MeetingDetailPage() {
   // Browser view mode state
   const [viewMode, setViewMode] = useState<'transcript' | 'browser'>('transcript');
   const [botPreviewOpen, setBotPreviewOpen] = useState(true);
+  const [browserPreviewAvailable, setBrowserPreviewAvailable] = useState<boolean | null>(null);
 
   // API view toggle state — default ON when coming from onboarding (?apiView=1)
   const [apiViewOpen, setApiViewOpen] = useState(() => searchParams?.get("apiView") === "1");
@@ -896,7 +897,23 @@ export default function MeetingDetailPage() {
     ['requested', 'joining', 'awaiting_admission', 'active'].includes(currentMeeting?.status)
   );
 
-  const browserViewIframe = hasBrowserView && viewMode === 'browser' ? (() => {
+  useEffect(() => {
+    if (!hasBrowserView || !sessionToken) {
+      setBrowserPreviewAvailable(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setBrowserPreviewAvailable(null);
+    const vncUrl = `/b/${sessionToken}/vnc/vnc.html?autoconnect=true&resize=scale&reconnect=true&view_only=true&path=b/${sessionToken}/vnc/websockify`;
+    fetch(vncUrl, { signal: controller.signal, cache: "no-store" })
+      .then((response) => setBrowserPreviewAvailable(response.ok))
+      .catch(() => setBrowserPreviewAvailable(false));
+
+    return () => controller.abort();
+  }, [hasBrowserView, sessionToken]);
+
+  const browserViewIframe = hasBrowserView && browserPreviewAvailable === true && viewMode === 'browser' ? (() => {
     // VNC loads from same origin — nginx proxies /b/ routes to the gateway
     const vncUrl = `/b/${sessionToken}/vnc/vnc.html?autoconnect=true&resize=scale&reconnect=true&view_only=false&path=b/${sessionToken}/vnc/websockify`;
     return (
@@ -910,7 +927,7 @@ export default function MeetingDetailPage() {
     );
   })() : null;
 
-  const botPreviewUrl = hasBrowserView
+  const botPreviewUrl = hasBrowserView && browserPreviewAvailable === true
     ? `/b/${sessionToken}/vnc/vnc.html?autoconnect=true&resize=scale&reconnect=true&view_only=true&path=b/${sessionToken}/vnc/websockify`
     : null;
 
@@ -1744,7 +1761,7 @@ export default function MeetingDetailPage() {
         {/* Sidebar - sticky on desktop, hidden on mobile */}
         <div className="hidden lg:block order-1 lg:order-2">
           <div className="lg:sticky lg:top-6 space-y-6">
-          {botPreviewUrl && (
+          {hasBrowserView && (
             <Card className="overflow-hidden">
               <Collapsible open={botPreviewOpen} onOpenChange={setBotPreviewOpen}>
                 <CollapsibleTrigger asChild>
@@ -1764,12 +1781,20 @@ export default function MeetingDetailPage() {
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className="border-t bg-black">
-                    <iframe
-                      src={botPreviewUrl}
-                      title="Bot browser preview"
-                      className="aspect-video w-full border-0"
-                      allow="clipboard-read; clipboard-write"
-                    />
+                    {botPreviewUrl ? (
+                      <iframe
+                        src={botPreviewUrl}
+                        title="Bot browser preview"
+                        className="aspect-video w-full border-0"
+                        allow="clipboard-read; clipboard-write"
+                      />
+                    ) : (
+                      <p className="px-3 py-6 text-center text-xs text-white/70">
+                        {browserPreviewAvailable === null
+                          ? "Checking browser session..."
+                          : "Browser preview unavailable: the session expired or is no longer running."}
+                      </p>
+                    )}
                     <p className="border-t border-white/10 px-3 py-2 text-xs text-white/70">
                       Vista del navegador del bot. Úsala para comprobar si Meet muestra la sala, el lobby o un error.
                     </p>
