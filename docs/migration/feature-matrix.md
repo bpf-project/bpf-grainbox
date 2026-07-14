@@ -27,10 +27,10 @@ npm run check:feature-matrix
 | Authentik SSO/provisioning | yes (proxy headers) | boundary migrated | PENDING | Authenticated browser + provisioned Vexa user |
 | Typed Vexa adapter | no dedicated product boundary | yes | PASS (unit) | `packages/vexa-client` tests |
 | Docker/local health | implicit | yes | PASS | Build + `/api/health` smoke |
-| Dell/VPS production path | yes | compose only | PENDING | Side-by-side canary, Rathole, nginx |
+| Dell/VPS production path | yes | compose + canary | PASS (infra) | New container healthy on Dell `3010`; Rathole target switched while old dashboard remains on `3001` for rollback |
 
 ## Current interpretation
 
 There is no source-level regression in the dashboard route surface: the new repo owns the old pages and API route inventory. The remaining risk is runtime, not page presence: most legacy routes still call Vexa through compatibility URLs, while the new typed provider is not yet the single server-side boundary. The matrix must remain non-green until the authenticated canary proves those flows.
 
-The Authentik contract is compatible with the existing VPS nginx setup only when nginx supplies `X-Authentik-Authenticated: true`, `X-Authentik-Email`, and `X-Authentik-Username`. Direct access to the new container must therefore not be treated as equivalent to production access.
+The Authentik contract is compatible with the existing VPS nginx setup only when nginx supplies `X-Authentik-Authenticated: true`, `X-Authentik-Email`, and `X-Authentik-Username`. Direct access to the new container must therefore not be treated as equivalent to production access. The production canary currently proves the gate and transport, but the feature rows remain pending until a real authenticated browser session exercises them.

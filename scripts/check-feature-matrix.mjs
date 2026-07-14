@@ -18,7 +18,7 @@ const rows = [
   ["Authentik identity boundary", "apps/web/src/lib/authentik-identity.ts", "PASS", "Trusted proxy headers normalized and unit-tested"],
   ["Typed Vexa provider package", "packages/vexa-client/src/index.ts", "PASS", "Contract package and fake provider tested"],
   ["Docker runtime", "deploy/docker/Dockerfile.web", "PASS", "Image build and local health smoke passed"],
-  ["Dell/VPS canary", "deploy/compose/grainbox.yml", "PENDING", "Requires side-by-side deployment and tunnel verification"],
+  ["Dell/VPS canary", "deploy/compose/grainbox.yml", "PASS", "Deployed healthy on Dell:3010; Rathole service active; production Authentik gate preserved"],
 ];
 
 const check = rows.map(([feature, file, status, evidence]) => ({
