@@ -94,19 +94,25 @@ export async function GET() {
   // Check Admin API configuration
   const adminApiKey = process.env.VEXA_ADMIN_API_KEY;
   const adminApiUrl = process.env.VEXA_ADMIN_API_URL || process.env.VEXA_API_URL;
+  const isDevBypass = process.env.NEXT_PUBLIC_DEV_BYPASS_AUTHENTIK === "true";
 
   if (adminApiKey && adminApiKey !== "your_admin_api_key_here") {
     status.checks.adminApi.configured = true;
 
-    // Test Admin API reachability - check if the /admin/users endpoint exists
+    // Test Admin API reachability
     if (adminApiUrl) {
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
 
+        // In dev bypass mode, use Bearer token (old fork) — in prod use API key
+        const authHeaders = isDevBypass
+          ? { Authorization: "Bearer test" }
+          : { "X-Admin-API-Key": adminApiKey };
+
         const response = await fetch(`${adminApiUrl}/admin/users?limit=1`, {
           method: "GET",
-          headers: { "X-Admin-API-Key": adminApiKey },
+          headers: { "Content-Type": "application/json", ...authHeaders },
           signal: controller.signal,
         });
         clearTimeout(timeoutId);

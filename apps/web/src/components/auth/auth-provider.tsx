@@ -61,8 +61,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       } else {
         // Grainbox is SSO-only. Re-enter through the Authentik outpost so an
         // expired session cannot leave the app stuck on the loading spinner.
+        // In development, skip authentik and redirect to /login instead.
         const returnUrl = encodeURIComponent(window.location.href);
-        window.location.href = `${window.location.origin}/outpost.goauthentik.io/start?rd=${returnUrl}`;
+        if (process.env.NEXT_PUBLIC_DEV_BYPASS_AUTHENTIK === "true") {
+          window.location.href = "/login";
+        } else {
+          window.location.href = `${window.location.origin}/outpost.goauthentik.io/start?rd=${returnUrl}`;
+        }
       }
     }
   }, [shouldRedirect, router, didLogout]);
