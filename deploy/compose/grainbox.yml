@@ -3,14 +3,14 @@ services:
     build:
       context: ../..
       dockerfile: deploy/docker/Dockerfile.web
-      args:
-        VEXA_API_URL: ${VEXA_API_URL:-http://host.docker.internal:8056}
     environment:
       NODE_ENV: production
-      VEXA_API_URL: ${VEXA_API_URL:-http://host.docker.internal:8056}
-      VEXA_ADMIN_API_URL: ${VEXA_ADMIN_API_URL:-http://host.docker.internal:8056}
+      # Upstream Vexa v0.12: gateway is the single entry point
+      VEXA_API_URL: ${VEXA_API_URL:-http://vexa-gateway:80}
+      # Admin API is now upstream at /admin/* on the gateway (no separate admin-api needed)
+      VEXA_ADMIN_API_URL: ${VEXA_ADMIN_API_URL:-http://vexa-gateway:80}
       VEXA_ADMIN_API_KEY: ${VEXA_ADMIN_API_KEY:?VEXA_ADMIN_API_KEY is required}
-      AGENT_API_URL: ${AGENT_API_URL:-http://vexa-v012-grainbox-agent-api-1:8100}
+      AGENT_API_URL: ${AGENT_API_URL:-http://vexa-gateway:80}
       AGENT_API_TOKEN: ${AGENT_API_TOKEN:-}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://grainbox.easycasual.app}
       NEXTAUTH_URL: ${NEXTAUTH_URL:-https://grainbox.easycasual.app}
@@ -24,6 +24,8 @@ services:
       AI_BASE_URL: ${AI_BASE_URL:-}
       AI_API_VERSION: ${AI_API_VERSION:-}
       NEXT_PUBLIC_ADMIN_UNLOCK_REQUIRED: ${NEXT_PUBLIC_ADMIN_UNLOCK_REQUIRED:-false}
+      # WebSocket URL for real-time transcript streaming
+      VEXA_WS_URL: ${VEXA_WS_URL:-ws://vexa-gateway:80}
     extra_hosts:
       - host.docker.internal:host-gateway
     ports:

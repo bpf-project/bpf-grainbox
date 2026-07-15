@@ -1,39 +1,43 @@
 import { z } from "zod";
 
+/**
+ * Upstream Vexa v0.12 gateway API contracts.
+ * These match the response schemas from Vexa-ai/vexa core/gateway/contracts/api.v1
+ */
+
 export const meetingStatusSchema = z.enum([
-  "created",
-  "waiting",
+  "requested",
   "joining",
-  "joined",
-  "recording",
+  "awaiting_admission",
+  "active",
+  "needs_human_help",
+  "stopping",
   "completed",
   "failed",
 ]);
 
-export const botStatusSchema = z.enum([
-  "created",
-  "waiting",
-  "connecting",
-  "joining",
-  "joined",
-  "recording",
-  "stopped",
-  "failed",
+export const platformSchema = z.enum([
+  "google_meet",
+  "zoom",
+  "teams",
+  "jitsi",
+  "browser_session",
 ]);
 
 export const meetingRuntimeSchema = z.object({
-  id: z.string(),
-  platform: z.enum(["google_meet", "zoom", "teams"]),
-  joinUrl: z.string().url(),
+  id: z.number(),
+  user_id: z.number(),
+  platform: platformSchema.nullable(),
+  native_meeting_id: z.string().nullable(),
+  constructed_meeting_url: z.string().nullable(),
   status: meetingStatusSchema,
-  provider: z.string(),
-});
-
-export const botRuntimeSchema = z.object({
-  id: z.string(),
-  meetingId: z.string(),
-  status: botStatusSchema,
-  provider: z.string(),
+  bot_container_id: z.string().nullable(),
+  start_time: z.string().nullable(),
+  end_time: z.string().nullable(),
+  completion_reason: z.string().nullable(),
+  data: z.record(z.unknown()).nullable(),
+  created_at: z.string(),
+  updated_at: z.string(),
 });
 
 export const lifecycleEventSchema = z.object({
@@ -53,6 +57,5 @@ export const lifecycleEventSchema = z.object({
 });
 
 export type MeetingRuntime = z.infer<typeof meetingRuntimeSchema>;
-export type BotRuntime = z.infer<typeof botRuntimeSchema>;
 export type LifecycleEvent = z.infer<typeof lifecycleEventSchema>;
 

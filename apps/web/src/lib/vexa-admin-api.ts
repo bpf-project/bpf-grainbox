@@ -118,17 +118,24 @@ async function adminRequest<T>(
   const VEXA_ADMIN_API_KEY = process.env.VEXA_ADMIN_API_KEY || "";
 
   if (!VEXA_ADMIN_API_KEY || VEXA_ADMIN_API_KEY === "your_admin_api_key_here") {
-    return {
-      success: false,
-      error: {
-        code: "NOT_CONFIGURED",
-        message: "Admin API key is not configured",
-        status: 500,
-      },
-    };
+    // In development, allow requests without API key — the fork's admin API uses Bearer token
+    if (process.env.NODE_ENV === "development" && process.env.VEXA_ADMIN_API_KEY !== undefined) {
+      // Continue without key for dev
+    } else {
+      return {
+        success: false,
+        error: {
+          code: "NOT_CONFIGURED",
+          message: "Admin API key is not configured",
+          status: 500,
+        },
+      };
+    }
   }
 
   const url = `${VEXA_ADMIN_API_URL}${path}`;
+  const isDevBypass = process.env.NEXT_PUBLIC_DEV_BYPASS_AUTHENTIK === "true";
+  const useBearerToken = isDevBypass && !VEXA_ADMIN_API_KEY;
 
   try {
     const controller = new AbortController();
@@ -138,7 +145,8 @@ async function adminRequest<T>(
       ...options,
       headers: {
         "Content-Type": "application/json",
-        "X-Admin-API-Key": VEXA_ADMIN_API_KEY,
+        ...(VEXA_ADMIN_API_KEY ? { "X-Admin-API-Key": VEXA_ADMIN_API_KEY } : {}),
+        ...(useBearerToken ? { Authorization: "Bearer test" } : {}),
         ...options.headers,
       },
       signal: controller.signal,
