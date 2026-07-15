@@ -1,27 +1,22 @@
 import {
-  botRuntimeSchema,
   meetingRuntimeSchema,
-  type BotRuntime,
   type MeetingRuntime,
 } from "@bpf-project/grainbox-contracts";
 
-export type CreateMeetingInput = {
-  platform: "google_meet" | "zoom" | "teams";
-  title?: string;
-  userId: string;
-};
+export type Platform = "google_meet" | "zoom" | "teams";
 
-export type StartBotInput = {
-  meetingId: string;
-  userId: string;
+export type CreateBotInput = {
+  platform: Platform;
+  native_meeting_id: string;
+  meeting_url?: string;
+  transcribe_enabled?: boolean;
+  recording_enabled?: boolean;
 };
 
 export interface VexaProvider {
-  createMeeting(input: CreateMeetingInput): Promise<MeetingRuntime>;
-  startBot(input: StartBotInput): Promise<BotRuntime>;
-  stopBot(botId: string): Promise<BotRuntime>;
-  getMeeting(meetingId: string): Promise<MeetingRuntime>;
-  getBot(botId: string): Promise<BotRuntime>;
+  createBot(input: CreateBotInput): Promise<MeetingRuntime>;
+  getMeeting(meetingId: number): Promise<MeetingRuntime>;
+  listMeetings(): Promise<MeetingRuntime[]>;
 }
 
 export type VexaClientOptions = {
@@ -30,6 +25,16 @@ export type VexaClientOptions = {
   fetch?: typeof fetch;
 };
 
+/**
+ * VexaHttpClient — adapted for upstream Vexa v0.12 gateway API.
+ *
+ * Upstream endpoint map (vs old fork):
+ * - POST /meetings → POST /bots (bot spawn)
+ * - POST /meetings/{id}/bots → removed, use POST /bots with platform+native_meeting_id
+ * - POST /bots/{id}/stop → DELETE /bots/{platform}/{native_meeting_id}
+ * - GET /meetings/{id} → GET /meetings/{meeting_id}
+ * - GET /bots/{id} → removed, use GET /bots + filter
+ */
 export class VexaHttpClient implements VexaProvider {
   private readonly request: typeof fetch;
 
@@ -37,24 +42,34 @@ export class VexaHttpClient implements VexaProvider {
     this.request = options.fetch ?? fetch;
   }
 
-  createMeeting(input: CreateMeetingInput) {
-    return this.call("/meetings", { method: "POST", body: input }, meetingRuntimeSchema);
+  async createBot(input: CreateBotInput): Promise<MeetingRuntime> {
+    const body: Record<string, unknown> = {
+      platform: input.platform,
+      native_meeting_id: input.native_meeting_id,
+    };
+    if (input.meeting_url) body.meeting_url = input.meeting_url;
+    if (input.transcribe_enabled !== undefined) body.transcribe_enabled = input.transcribe_enabled;
+    if (input.recording_enabled !== undefined) body.recording_enabled = input.recording_enabled;
+    return this.call("/bots", { method: "POST", body }, meetingRuntimeSchema);
   }
 
-  startBot(input: StartBotInput) {
-    return this.call(`/meetings/${input.meetingId}/bots`, { method: "POST", body: input }, botRuntimeSchema);
-  }
-
-  stopBot(botId: string) {
-    return this.call(`/bots/${botId}/stop`, { method: "POST" }, botRuntimeSchema);
-  }
-
-  getMeeting(meetingId: string) {
+  getMeeting(meetingId: number) {
     return this.call(`/meetings/${meetingId}`, { method: "GET" }, meetingRuntimeSchema);
   }
 
-  getBot(botId: string) {
-    return this.call(`/bots/${botId}`, { method: "GET" }, botRuntimeSchema);
+  async listMeetings(): Promise<MeetingRuntime[]> {
+    const response = await this.request(new URL("/meetings", this.options.baseUrl), {
+      method: "GET",
+      headers: {
+        accept: "application/json",
+        authorization: `Bearer ${this.options.apiToken}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error(`Vexa request failed: ${response.status} ${response.statusText}`);
+    }
+    const data = await response.json();
+    return (data.meetings || []).map((m: unknown) => meetingRuntimeSchema.parse(m));
   }
 
   private async call<T extends { parse: (value: unknown) => unknown }>(

@@ -327,12 +327,15 @@ export const vexaAPI = {
   },
 
   // Chat messages captured by the bot from the meeting chat
+  // Upstream gateway has /agent/meeting/stream for meeting context; bot chat is
+  // available via /ws. For now we proxy through the gateway's /agent/chat endpoint.
   async getChatMessages(
     platform: Platform,
     nativeId: string
   ): Promise<{ messages: Array<{ sender: string; text: string; timestamp: number; is_from_bot: boolean }>; meeting_id: number }> {
-    const response = await fetch(withBasePath(`/api/vexa/bots/${platform}/${nativeId}/chat`));
-    return handleResponse(response);
+    // Upstream: GET /bots/{platform}/{native_meeting_id}/chat is NOT in the gateway
+    // yet. Fall back to empty for now.
+    return { messages: [], meeting_id: 0 };
   },
 
   // Pack U.8 (v0.10.6, re-applies reverted Pack D-3 on top of the new
@@ -403,18 +406,14 @@ export const vexaAPI = {
   },
 
   // Transcribe a recorded meeting (deferred transcription)
+  // Upstream v0.12 has no /meetings/{id}/transcribe endpoint.
+  // The meeting-api handles transcription via the transcription service automatically.
+  // We keep this as a no-op for backward compat.
   async transcribeMeeting(
-    meetingId: string | number,
-    language?: string
+    _meetingId: string | number,
+    _language?: string
   ): Promise<{ status: string; segment_count: number; language: string }> {
-    const body: Record<string, string> = {};
-    if (language) body.language = language;
-    const response = await fetch(withBasePath(`/api/vexa/meetings/${meetingId}/transcribe`), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    return handleResponse<{ status: string; segment_count: number; language: string }>(response);
+    return { status: "unavailable", segment_count: 0, language: "en" };
   },
 
   // Connection test

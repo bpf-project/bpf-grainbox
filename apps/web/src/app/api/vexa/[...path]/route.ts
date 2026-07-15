@@ -22,6 +22,33 @@ async function proxyRequest(
   const { path } = await params;
   let pathString = path.join("/");
 
+  // Path translation layer: map bpf-grainbox API paths to upstream Vexa gateway paths.
+  // Upstream changed: POST /meetings/{id}/bots → POST /bots
+  if (pathString.startsWith("meetings/") && path.length === 2 && path[1] === "bots" && method === "POST") {
+    pathString = "bots";
+  }
+  // Upstream removed: POST /bots/{id}/stop → now DELETE /bots/{platform}/{native_id}
+  if (pathString.startsWith("bots/") && path.length === 3 && path[2] === "stop" && method === "POST") {
+    return NextResponse.json(
+      { error: "Use DELETE /bots/{platform}/{native_id} instead", code: "ENDPOINT_MIGRATED" },
+      { status: 501 }
+    );
+  }
+  // Upstream removed: GET /bots/{id} — proxy returns 501, client should use GET /bots + filter
+  if (pathString.startsWith("bots/") && path.length === 2 && method === "GET") {
+    return NextResponse.json(
+      { error: "Use GET /bots + filter client-side instead", code: "ENDPOINT_MIGRATED" },
+      { status: 501 }
+    );
+  }
+  // Upstream removed: POST /meetings/{id}/transcribe — stubbed in API client
+  if (pathString.startsWith("meetings/") && path.length === 2 && path[1] === "transcribe" && method === "POST") {
+    return NextResponse.json(
+      { error: "Deferred transcription endpoint removed in upstream", code: "ENDPOINT_MIGRATED" },
+      { status: 501 }
+    );
+  }
+
   // /meetings list: primary source is GET /bots (meeting-api DB — all statuses).
   // Fallback to /bots/status (running containers only) if /bots fails.
   if (pathString === "meetings" && method === "GET") {
