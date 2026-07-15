@@ -104,9 +104,6 @@ export async function POST(req: NextRequest) {
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
-      // Create a room that the authenticated bot can enter immediately. With
-      // an empty request Google applies the user's default access policy, which
-      // can put the bot (and every participant) in the knock/approval lobby.
       body: JSON.stringify({
         config: {
           accessType: "OPEN",
@@ -118,7 +115,16 @@ export async function POST(req: NextRequest) {
     });
     const space = await spaceResponse.json().catch(() => ({}));
     if (!spaceResponse.ok || !space.meetingUri) {
-      return jsonError(space.error?.message || "Google Meet space creation failed", 502);
+      // Google Meet API v2 errors are often API-not-enabled. Provide actionable message.
+      const msg = space.error?.message || "Google Meet space creation failed";
+      if (spaceResponse.status === 403 || spaceResponse.status === 404) {
+        return jsonError(
+          `Google Meet API is not enabled on this project. Enable it at https://console.cloud.google.com/apis/library/meet.googleapis.com. ${msg}`,
+          502,
+          { code: "GOOGLE_MEET_API_DISABLED" }
+        );
+      }
+      return jsonError(msg, 502);
     }
 
     const vexaApiUrl = process.env.VEXA_API_URL || "http://localhost:8066";

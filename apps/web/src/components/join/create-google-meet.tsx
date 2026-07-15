@@ -49,6 +49,12 @@ export function CreateGoogleMeet() {
         await startGoogleOAuth();
         return;
       }
+      // Google Meet API not enabled — offer to join existing meeting
+      if (data.code === "GOOGLE_MEET_API_DISABLED") {
+        pendingWindow.current?.close();
+        pendingWindow.current = null;
+        throw new Error("Google Meet API is not enabled on this project. Please enable it in the Google Cloud Console or join an existing meeting instead.");
+      }
       if (!response.ok) throw new Error(data.error || "Could not create Google Meet");
 
       const meetingId = data.meeting?.id;
