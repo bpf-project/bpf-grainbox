@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { createUser, createUserToken, findUserByEmail, updateUser } from "@/lib/vexa-admin-api";
+import { createUser, createUserToken, findUserByEmail } from "@/lib/vexa-admin-api";
+import { loadGoogleOAuth, saveGoogleOAuth, type StoredGoogleOAuth } from "@/lib/google-calendar-token-store";
 
 const MEET_SCOPE = "https://www.googleapis.com/auth/meetings.space.created";
-
-type StoredGoogleOAuth = {
-  access_token?: string;
-  refresh_token?: string;
-  expires_at?: number;
-  scope?: string;
-};
 
 function jsonError(error: string, status: number, extra: Record<string, unknown> = {}) {
   return NextResponse.json({ error, ...extra }, { status });
@@ -35,7 +29,7 @@ async function resolveVexaUser(email: string) {
 async function refreshGoogleAccessToken(
   oauth: StoredGoogleOAuth,
   userId: string,
-  userData: Record<string, unknown>,
+  email: string,
 ): Promise<string> {
   if (!oauth.refresh_token) {
     throw new Error("Google authorization is missing a refresh token");
@@ -69,14 +63,7 @@ async function refreshGoogleAccessToken(
     expires_at: Math.floor(Date.now() / 1000) + Number(payload.expires_in || 3600),
     scope: payload.scope || oauth.scope,
   };
-  const updatedData = {
-    ...userData,
-    google_calendar: { oauth: refreshedOAuth },
-  };
-  const saved = await updateUser(userId, { data: updatedData });
-  if (!saved.success) {
-    throw new Error(saved.error?.message || "Could not persist refreshed Google token");
-  }
+  await saveGoogleOAuth(userId, email, refreshedOAuth);
   return payload.access_token;
 }
 
@@ -109,8 +96,9 @@ export async function POST(req: NextRequest) {
       throw new Error(tokenResult.error?.details || tokenResult.error?.message || "Could not create Vexa bot token");
     }
     const botToken = tokenResult.data.token;
-    const userData = vexaUser.data || {};
-    const oauth = (userData.google_calendar as { oauth?: StoredGoogleOAuth } | undefined)?.oauth;
+  const userData = vexaUser.data || {};
+  const oauth = (await loadGoogleOAuth(String(vexaUser.id))) ||
+    (userData.google_calendar as { oauth?: StoredGoogleOAuth } | undefined)?.oauth;
     if (!oauth?.refresh_token || !oauth.scope?.includes(MEET_SCOPE)) {
       return jsonError("Google Meet authorization is required", 401, {
         code: "GOOGLE_MEET_OAUTH_REQUIRED",
@@ -120,7 +108,7 @@ export async function POST(req: NextRequest) {
     let accessToken = oauth.access_token || "";
     const expiresAt = Number(oauth.expires_at || 0);
     if (!accessToken || expiresAt <= Math.floor(Date.now() / 1000) + 60) {
-      accessToken = await refreshGoogleAccessToken(oauth, vexaUser.id, userData);
+      accessToken = await refreshGoogleAccessToken(oauth, vexaUser.id, vexaUser.email);
     }
 
     const spaceResponse = await fetch("https://meet.googleapis.com/v2/spaces", {

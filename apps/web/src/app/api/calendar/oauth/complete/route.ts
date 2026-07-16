@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHmac } from "crypto";
-import { getUserById, updateUser } from "@/lib/vexa-admin-api";
+import { saveGoogleOAuth } from "@/lib/google-calendar-token-store";
 import {
   isInternalGoogleRedirectUri,
   resolveGoogleCalendarRedirectUri,
@@ -150,39 +150,12 @@ export async function POST(req: NextRequest) {
       clientSecret,
     });
 
-    const userResult = await getUserById(parsedState.userId);
-    if (!userResult.success || !userResult.data) {
-      return NextResponse.json(
-        { error: userResult.error?.message || "Failed to load user" },
-        { status: 500 }
-      );
-    }
-
-    const now = Math.floor(Date.now() / 1000);
-    const existingData =
-      userResult.data.data && typeof userResult.data.data === "object"
-        ? userResult.data.data
-        : {};
-
-    const updatedData: Record<string, unknown> = {
-      ...existingData,
-      google_calendar: {
-        oauth: {
-          access_token: tokens.access_token,
-          refresh_token: tokens.refresh_token,
-          expires_at: now + tokens.expires_in,
-          scope: tokens.scope || "",
-        },
-      },
-    };
-
-    const patchResult = await updateUser(parsedState.userId, { data: updatedData });
-    if (!patchResult.success) {
-      return NextResponse.json(
-        { error: patchResult.error?.message || "Failed to persist Google Calendar tokens" },
-        { status: 500 }
-      );
-    }
+    await saveGoogleOAuth(parsedState.userId, parsedState.email, {
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      expires_at: Math.floor(Date.now() / 1000) + tokens.expires_in,
+      scope: tokens.scope || "",
+    });
 
     return NextResponse.json({
       success: true,
