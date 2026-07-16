@@ -19,13 +19,26 @@ export function CreateGoogleMeet() {
   const pendingWindow = useRef<Window | null>(null);
   const resumedOAuthFlow = useRef(false);
 
+  async function readJsonResponse(response: Response): Promise<Record<string, any> | null> {
+    const contentType = response.headers.get("content-type") || "";
+    if (!contentType.toLowerCase().includes("application/json")) {
+      if (response.redirected && response.url) {
+        window.location.assign(response.url);
+        return null;
+      }
+      throw new Error(`Grainbox returned an unexpected response (${response.status})`);
+    }
+    return (await response.json()) as Record<string, any>;
+  }
+
   async function startGoogleOAuth() {
     const response = await fetch(withBasePath("/api/calendar/oauth/start"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userEmail: user?.email, returnTo: "/join?google_calendar=connected" }),
     });
-    const data = await response.json();
+    const data = await readJsonResponse(response);
+    if (!data) return;
     if (!response.ok || !data.authUrl) throw new Error(data.error || "Could not start Google authorization");
     window.location.assign(data.authUrl);
   }
@@ -45,7 +58,8 @@ export function CreateGoogleMeet() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userEmail: user.email }),
       });
-      const data = await response.json();
+      const data = await readJsonResponse(response);
+      if (!data) return;
       if (response.status === 401 && data.code === "GOOGLE_MEET_OAUTH_REQUIRED") {
         pendingWindow.current?.close();
         pendingWindow.current = null;
