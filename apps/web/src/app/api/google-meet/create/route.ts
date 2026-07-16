@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
     let accessToken = oauth.access_token || "";
     const expiresAt = Number(oauth.expires_at || 0);
     if (!accessToken || expiresAt <= Math.floor(Date.now() / 1000) + 60) {
-      accessToken = await refreshGoogleAccessToken(oauth, vexaUser.id, vexaUser.email);
+      accessToken = await refreshGoogleAccessToken(oauth, String(vexaUser.id), vexaUser.email);
     }
 
     const spaceResponse = await fetch("https://meet.googleapis.com/v2/spaces", {
