@@ -134,7 +134,7 @@ export class VexaHttpClient implements VexaProvider {
       method: "GET",
       headers: {
         accept: "application/json",
-        authorization: `Bearer ${this.options.apiToken}`,
+        "X-API-Key": this.options.apiToken,
       },
     });
     if (!response.ok) {
@@ -153,7 +153,7 @@ export class VexaHttpClient implements VexaProvider {
       method: options.method,
       headers: {
         accept: "application/json",
-        authorization: `Bearer ${this.options.apiToken}`,
+        "X-API-Key": this.options.apiToken,
         ...(options.body ? { "content-type": "application/json" } : {}),
       },
       body: options.body ? JSON.stringify(options.body) : undefined,
