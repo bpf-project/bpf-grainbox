@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHmac } from "crypto";
 import { getUserById, updateUser } from "@/lib/vexa-admin-api";
+import {
+  isInternalGoogleRedirectUri,
+  resolveGoogleCalendarRedirectUri,
+} from "@/lib/google-calendar-oauth";
 
 type CalendarOAuthStatePayload = {
   userId: string;
@@ -26,13 +30,6 @@ function getStateSecret(): string {
     process.env.VEXA_ADMIN_API_KEY ||
     ""
   );
-}
-
-function resolveRedirectUri(req: NextRequest): string {
-  if (process.env.GOOGLE_CALENDAR_REDIRECT_URI) {
-    return process.env.GOOGLE_CALENDAR_REDIRECT_URI;
-  }
-  return `${req.nextUrl.origin}/auth/google-calendar/callback`;
 }
 
 function parseAndVerifyState(state: string, secret: string): CalendarOAuthStatePayload {
@@ -140,9 +137,11 @@ export async function POST(req: NextRequest) {
 
     const parsedState = parseAndVerifyState(state, stateSecret);
     const redirectUri =
-      typeof parsedState.redirectUri === "string" && parsedState.redirectUri
+      typeof parsedState.redirectUri === "string" &&
+      parsedState.redirectUri &&
+      !isInternalGoogleRedirectUri(parsedState.redirectUri)
         ? parsedState.redirectUri
-        : resolveRedirectUri(req);
+        : resolveGoogleCalendarRedirectUri(req.nextUrl.origin);
 
     const tokens = await exchangeCodeForGoogleTokens({
       code,

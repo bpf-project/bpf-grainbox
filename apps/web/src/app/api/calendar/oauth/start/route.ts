@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHmac } from "crypto";
 import { cookies } from "next/headers";
 import { findUserByEmail } from "@/lib/vexa-admin-api";
+import { resolveGoogleCalendarRedirectUri } from "@/lib/google-calendar-oauth";
 
 type CalendarOAuthStatePayload = {
   userId: string;
@@ -37,16 +38,6 @@ function signStatePayload(payload: CalendarOAuthStatePayload, secret: string): s
   const data = toBase64Url(JSON.stringify(payload));
   const signature = createHmac("sha256", secret).update(data).digest("base64url");
   return `${data}.${signature}`;
-}
-
-function resolveRedirectUri(req: NextRequest): string {
-  if (process.env.GOOGLE_MEET_REDIRECT_URI) {
-    return process.env.GOOGLE_MEET_REDIRECT_URI;
-  }
-  if (process.env.GOOGLE_CALENDAR_REDIRECT_URI) {
-    return process.env.GOOGLE_CALENDAR_REDIRECT_URI;
-  }
-  return `${req.nextUrl.origin}/auth/google-calendar/callback`;
 }
 
 export async function POST(req: NextRequest) {
@@ -86,7 +77,7 @@ export async function POST(req: NextRequest) {
     }
 
     const now = Math.floor(Date.now() / 1000);
-    const redirectUri = resolveRedirectUri(req);
+    const redirectUri = resolveGoogleCalendarRedirectUri(req.nextUrl.origin);
     const payload: CalendarOAuthStatePayload = {
       userId: String(userResult.data.id),
       email: userResult.data.email,
