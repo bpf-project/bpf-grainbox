@@ -85,14 +85,18 @@ export async function POST(req: NextRequest) {
     await req.json().catch(() => ({}));
     const cookieStore = await cookies();
     const userToken = cookieStore.get("vexa-token")?.value;
-    const userInfoCookie = cookieStore.get("vexa-user-info")?.value;
-    let userEmail = "";
-    try {
-      userEmail = String(JSON.parse(userInfoCookie || "{}").email || "").toLowerCase();
-    } catch {
-      userEmail = "";
+    if (!userToken) {
+      return jsonError("Not authenticated", 401);
     }
-    if (!userToken || !userEmail) {
+
+    const vexaApiUrl = process.env.VEXA_API_URL || "http://localhost:8066";
+    const identityResponse = await fetch(`${vexaApiUrl}/auth/me`, {
+      headers: { "X-API-Key": userToken },
+      cache: "no-store",
+    });
+    const identity = await identityResponse.json().catch(() => ({}));
+    const userEmail = String(identity.email || "").toLowerCase();
+    if (!identityResponse.ok || !userEmail) {
       return jsonError("Not authenticated", 401);
     }
 
@@ -148,7 +152,6 @@ export async function POST(req: NextRequest) {
       return jsonError(msg, 502);
     }
 
-    const vexaApiUrl = process.env.VEXA_API_URL || "http://localhost:8066";
     const botResponse = await fetch(`${vexaApiUrl}/bots`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-API-Key": botToken },
