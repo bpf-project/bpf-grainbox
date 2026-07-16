@@ -106,7 +106,7 @@ export async function GET() {
         const timeoutId = setTimeout(() => controller.abort(), 5000);
 
         // In dev bypass mode, use Bearer token (old fork) — in prod use API key
-        const authHeaders = isDevBypass
+        const authHeaders: HeadersInit = isDevBypass
           ? { Authorization: "Bearer test" }
           : { "X-Admin-API-Key": adminApiKey };
 

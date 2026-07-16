@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { findUserByEmail, updateUser } from "@/lib/vexa-admin-api";
+import { createUser, createUserToken, findUserByEmail, updateUser } from "@/lib/vexa-admin-api";
 
 const MEET_SCOPE = "https://www.googleapis.com/auth/meetings.space.created";
 
@@ -13,6 +13,23 @@ type StoredGoogleOAuth = {
 
 function jsonError(error: string, status: number, extra: Record<string, unknown> = {}) {
   return NextResponse.json({ error, ...extra }, { status });
+}
+
+async function resolveVexaUser(email: string) {
+  const existing = await findUserByEmail(email);
+  if (existing.success && existing.data) return existing.data;
+
+  if (existing.error?.status !== 404) {
+    throw new Error(existing.error?.details || existing.error?.message || "Could not resolve Vexa user");
+  }
+
+  const created = await createUser({ email });
+  if (created.success && created.data) return created.data;
+
+  // Another request may have provisioned the user between the lookup and create.
+  const retry = await findUserByEmail(email);
+  if (retry.success && retry.data) return retry.data;
+  throw new Error(created.error?.details || created.error?.message || "Could not provision Vexa user");
 }
 
 async function refreshGoogleAccessToken(
@@ -79,12 +96,16 @@ export async function POST(req: NextRequest) {
       return jsonError("Not authenticated", 401);
     }
 
-    const userResult = await findUserByEmail(userEmail);
-    if (!userResult.success || !userResult.data) {
-      return jsonError(userResult.error?.message || "Could not resolve user", 400);
+    // The cookie can come from a previous Vexa deployment. Resolve the user and
+    // mint a token from the same Vexa instance used by this app instead of
+    // forwarding a stale token to POST /bots.
+    const vexaUser = await resolveVexaUser(userEmail);
+    const tokenResult = await createUserToken(vexaUser.id);
+    if (!tokenResult.success || !tokenResult.data?.token) {
+      throw new Error(tokenResult.error?.details || tokenResult.error?.message || "Could not create Vexa bot token");
     }
-
-    const userData = userResult.data.data || {};
+    const botToken = tokenResult.data.token;
+    const userData = vexaUser.data || {};
     const oauth = (userData.google_calendar as { oauth?: StoredGoogleOAuth } | undefined)?.oauth;
     if (!oauth?.refresh_token || !oauth.scope?.includes(MEET_SCOPE)) {
       return jsonError("Google Meet authorization is required", 401, {
@@ -95,7 +116,7 @@ export async function POST(req: NextRequest) {
     let accessToken = oauth.access_token || "";
     const expiresAt = Number(oauth.expires_at || 0);
     if (!accessToken || expiresAt <= Math.floor(Date.now() / 1000) + 60) {
-      accessToken = await refreshGoogleAccessToken(oauth, userResult.data.id, userData);
+      accessToken = await refreshGoogleAccessToken(oauth, vexaUser.id, userData);
     }
 
     const spaceResponse = await fetch("https://meet.googleapis.com/v2/spaces", {
@@ -130,21 +151,19 @@ export async function POST(req: NextRequest) {
     const vexaApiUrl = process.env.VEXA_API_URL || "http://localhost:8066";
     const botResponse = await fetch(`${vexaApiUrl}/bots`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-Key": userToken,
-      },
+      headers: { "Content-Type": "application/json", "X-API-Key": botToken },
       body: JSON.stringify({
         platform: "google_meet",
         meeting_url: space.meetingUri,
-        authenticated: true,
         bot_name: process.env.DEFAULT_BOT_NAME || "EC Listener",
       }),
       cache: "no-store",
     });
     const meeting = await botResponse.json().catch(() => ({}));
     if (!botResponse.ok) {
-      return jsonError(meeting.detail || "Could not start transcription bot", 502, {
+      return jsonError(meeting.detail || meeting.error || "Could not start transcription bot", 502, {
+        code: "VEXA_BOT_START_FAILED",
+        upstream_status: botResponse.status,
         meeting_url: space.meetingUri,
       });
     }
