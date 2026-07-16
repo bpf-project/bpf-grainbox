@@ -16,7 +16,7 @@ const rows = [
   ["Admin users/bots", "apps/web/src/app/admin/users/page.tsx", "PENDING", "Requires Authentik admin claim and live admin API"],
   ["MCP and agent routes", "apps/web/src/app/mcp/page.tsx", "PENDING", "Requires live upstream contract"],
   ["Authentik identity boundary", "apps/web/src/lib/authentik-identity.ts", "PASS", "Trusted proxy headers normalized and unit-tested"],
-  ["Typed Vexa provider package", "packages/vexa-client/src/index.ts", "PASS", "Contract package and fake provider tested"],
+  ["Vexa admin boundary", "packages/vexa-client/src/index.ts", "PASS", "Narrow admin client used by SSO provisioning"],
   ["Docker runtime", "deploy/docker/Dockerfile.web", "PASS", "Image build and local health smoke passed"],
   ["Dell/VPS canary", "deploy/compose/grainbox.yml", "PASS", "Deployed healthy on Dell:3010; Rathole service active; production Authentik gate preserved"],
 ];

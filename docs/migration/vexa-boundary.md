@@ -5,17 +5,15 @@ runtime. Grainbox communicates with it through the small
 `@bpf-project/grainbox-vexa-client` workspace package and server-side route
 adapters.
 
-The client package owns only stable integration contracts:
+The client package owns only the stable admin integration:
 
-- bot create/list/get operations;
 - Authentik user lookup/create and scoped token minting;
-- Grainbox-owned runtime schemas.
+- no Vexa UI, database model, or runtime implementation.
 
 It must not copy Vexa services, database models, dashboard pages, or internal
 business logic. New Vexa behavior belongs upstream first when it is generally
 useful; Grainbox-specific behavior belongs in `apps/web` or a narrow adapter.
 
-The current UI still contains legacy-compatible types and route adapters where
-the product surface needs them. Those are migration debt, not permission to
-vendor the Vexa dashboard. The next cleanup should replace each such use with
-the client/contracts package only when the contract is covered by a test.
+The UI still has product-facing Vexa types and route adapters because those
+shapes are used by the current Grainbox screens. They are not a vendored Vexa
+runtime and should remain server-side.
