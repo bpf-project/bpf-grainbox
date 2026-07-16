@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createUser, createUserToken, findUserByEmail } from "@/lib/vexa-admin-api";
 import { loadGoogleOAuth, saveGoogleOAuth, type StoredGoogleOAuth } from "@/lib/google-calendar-token-store";
+import { parseMeetingInput } from "@/lib/parse-meeting-input";
 
 const MEET_SCOPE = "https://www.googleapis.com/auth/meetings.space.created";
 
@@ -140,11 +141,19 @@ export async function POST(req: NextRequest) {
       return jsonError(msg, 502);
     }
 
+    const parsedSpace = parseMeetingInput(space.meetingUri);
+    if (!parsedSpace?.meetingId) {
+      return jsonError("Google Meet API returned an invalid meeting URL", 502, {
+        code: "GOOGLE_MEET_INVALID_URL",
+      });
+    }
+
     const botResponse = await fetch(`${vexaApiUrl}/bots`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-API-Key": botToken },
       body: JSON.stringify({
         platform: "google_meet",
+        native_meeting_id: parsedSpace.meetingId,
         meeting_url: space.meetingUri,
         bot_name: process.env.DEFAULT_BOT_NAME || "EC Listener",
       }),
