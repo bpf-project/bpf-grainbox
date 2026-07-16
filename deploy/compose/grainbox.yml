@@ -24,12 +24,15 @@ services:
       AI_BASE_URL: ${AI_BASE_URL:-}
       AI_API_VERSION: ${AI_API_VERSION:-}
       NEXT_PUBLIC_ADMIN_UNLOCK_REQUIRED: ${NEXT_PUBLIC_ADMIN_UNLOCK_REQUIRED:-false}
+      GRAINBOX_DATA_DIR: ${GRAINBOX_DATA_DIR:-/var/lib/grainbox}
       # WebSocket URL for real-time transcript streaming
       VEXA_WS_URL: ${VEXA_WS_URL:-ws://vexa-gateway:80}
     extra_hosts:
       - host.docker.internal:host-gateway
     ports:
       - "${GRAINBOX_WEB_PORT:-3001}:3000"
+    volumes:
+      - grainbox-web-data:/var/lib/grainbox
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
@@ -44,3 +47,6 @@ networks:
   vexa-v012:
     external: true
     name: vexa-v012-grainbox_vexa
+
+volumes:
+  grainbox-web-data:
