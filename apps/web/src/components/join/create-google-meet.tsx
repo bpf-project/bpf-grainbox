@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { CheckCircle2, Loader2, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,16 +12,18 @@ import { useAuthStore } from "@/stores/auth-store";
 
 export function CreateGoogleMeet() {
   const user = useAuthStore((state) => state.user);
+  const searchParams = useSearchParams();
   const [isCreating, setIsCreating] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [readyToJoin, setReadyToJoin] = useState(false);
   const pendingWindow = useRef<Window | null>(null);
+  const resumedOAuthFlow = useRef(false);
 
   async function startGoogleOAuth() {
     const response = await fetch(withBasePath("/api/calendar/oauth/start"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userEmail: user?.email, returnTo: "/join" }),
+      body: JSON.stringify({ userEmail: user?.email, returnTo: "/join?google_calendar=connected" }),
     });
     const data = await response.json();
     if (!response.ok || !data.authUrl) throw new Error(data.error || "Could not start Google authorization");
@@ -93,6 +96,22 @@ export function CreateGoogleMeet() {
       setIsCreating(false);
     }
   }
+
+  useEffect(() => {
+    if (
+      resumedOAuthFlow.current ||
+      searchParams.get("google_calendar") !== "connected" ||
+      !user?.email
+    ) {
+      return;
+    }
+
+    resumedOAuthFlow.current = true;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("google_calendar");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    void createMeeting();
+  }, [searchParams, user?.email]);
 
   return (
     <Card>
