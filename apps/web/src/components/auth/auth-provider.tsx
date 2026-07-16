@@ -18,7 +18,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const pathname = usePathname();
   const { isAuthenticated, isLoading, checkAuth, didLogout } = useAuthStore();
   const [shouldRedirect, setShouldRedirect] = useState(false);
+  const [redirectBlocked, setRedirectBlocked] = useState(false);
   const meetingUrlCaptured = useRef(false);
+  const authRedirectKey = "grainbox-auth-redirect-attempted";
 
   // Capture meetingUrl from query string and save to localStorage before any redirect
   useEffect(() => {
@@ -46,10 +48,37 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Handle redirect in useEffect to avoid React render warning
   useEffect(() => {
+    if (isAuthenticated) {
+      sessionStorage.removeItem(authRedirectKey);
+      setRedirectBlocked(false);
+      setShouldRedirect(false);
+      return;
+    }
+
     if (!isLoading && !isAuthenticated && !isPublicRoute) {
+      if (sessionStorage.getItem(authRedirectKey) === window.location.pathname) {
+        // Authentik returned to Grainbox without an authenticated proxy
+        // session. Stop here instead of starting Grainbox -> Authentik again.
+        setRedirectBlocked(true);
+        return;
+      }
+      sessionStorage.setItem(authRedirectKey, window.location.pathname);
       setShouldRedirect(true);
     }
   }, [isLoading, isAuthenticated, isPublicRoute]);
+
+  const beginAuth = () => {
+    sessionStorage.removeItem(authRedirectKey);
+    const returnUrl = encodeURIComponent(window.location.href);
+    const externalAuthUrl = process.env.NEXT_PUBLIC_EXTERNAL_AUTH_URL;
+    if (externalAuthUrl) {
+      window.location.replace(`${externalAuthUrl}?returnUrl=${returnUrl}`);
+      return;
+    }
+    window.location.replace(
+      `${window.location.origin}/outpost.goauthentik.io/start?rd=${returnUrl}`,
+    );
+  };
 
   useEffect(() => {
     if (shouldRedirect) {
@@ -57,16 +86,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (externalAuthUrl) {
         // SSO: redirect to webapp for authentication
         const returnUrl = encodeURIComponent(window.location.href);
-        window.location.href = `${externalAuthUrl}?returnUrl=${returnUrl}`;
+        window.location.replace(`${externalAuthUrl}?returnUrl=${returnUrl}`);
       } else {
         // Grainbox is SSO-only. Re-enter through the Authentik outpost so an
         // expired session cannot leave the app stuck on the loading spinner.
         // In development, skip authentik and redirect to /login instead.
-        const returnUrl = encodeURIComponent(window.location.href);
         if (process.env.NEXT_PUBLIC_DEV_BYPASS_AUTHENTIK === "true") {
-          window.location.href = "/login";
+          window.location.replace("/login");
         } else {
-          window.location.href = `${window.location.origin}/outpost.goauthentik.io/start?rd=${returnUrl}`;
+          beginAuth();
         }
       }
     }
@@ -78,6 +106,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   // If loading or need to redirect, show loading state
+  if (redirectBlocked) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
+        <p className="text-muted-foreground">
+          Authentik no confirmó la sesión para Grainbox.
+        </p>
+        <button
+          type="button"
+          className="rounded-md bg-primary px-4 py-2 text-primary-foreground"
+          onClick={beginAuth}
+        >
+          Reintentar inicio de sesión
+        </button>
+      </div>
+    );
+  }
+
   if (isLoading || !isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center">

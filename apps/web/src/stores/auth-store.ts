@@ -139,7 +139,12 @@ export const useAuthStore = create<AuthState>()(
         // Always verify with server — localStorage may be stale (e.g. different
         // user logged in on the webapp since last dashboard visit).
         try {
-          const response = await fetch(withBasePath("/api/auth/me"));
+          // The reverse proxy protects this endpoint with Authentik. When the
+          // session is missing it returns a redirect to the Authentik HTML
+          // flow; never follow that redirect from JSON auth code.
+          const response = await fetch(withBasePath("/api/auth/me"), {
+            redirect: "manual",
+          });
           if (response.ok) {
             const meData = await response.json();
 
