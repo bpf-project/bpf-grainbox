@@ -35,10 +35,11 @@ function encryptionKey(): Buffer {
 }
 
 export async function saveGoogleOAuth(
-  userId: string,
+  userId: string | number,
   email: string,
   oauth: StoredGoogleOAuth,
 ): Promise<void> {
+  const normalizedUserId = String(userId);
   const iv = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", encryptionKey(), iv);
   const ciphertext = Buffer.concat([
@@ -47,24 +48,25 @@ export async function saveGoogleOAuth(
   ]);
   const envelope: TokenEnvelope = {
     version: 1,
-    userId,
+    userId: normalizedUserId,
     email,
     iv: iv.toString("base64url"),
     authTag: cipher.getAuthTag().toString("base64url"),
     ciphertext: ciphertext.toString("base64url"),
     updatedAt: new Date().toISOString(),
   };
-  const path = tokenPath(userId);
+  const path = tokenPath(normalizedUserId);
   await mkdir(join(storeDirectory(), "google-calendar"), { recursive: true });
   const temporaryPath = `${path}.${process.pid}.tmp`;
   await writeFile(temporaryPath, JSON.stringify(envelope), { mode: 0o600 });
   await rename(temporaryPath, path);
 }
 
-export async function loadGoogleOAuth(userId: string): Promise<StoredGoogleOAuth | null> {
+export async function loadGoogleOAuth(userId: string | number): Promise<StoredGoogleOAuth | null> {
+  const normalizedUserId = String(userId);
   try {
-    const envelope = JSON.parse(await readFile(tokenPath(userId), "utf8")) as TokenEnvelope;
-    if (envelope.version !== 1 || envelope.userId !== userId) return null;
+    const envelope = JSON.parse(await readFile(tokenPath(normalizedUserId), "utf8")) as TokenEnvelope;
+    if (envelope.version !== 1 || envelope.userId !== normalizedUserId) return null;
     const decipher = createDecipheriv("aes-256-gcm", encryptionKey(), Buffer.from(envelope.iv, "base64url"));
     decipher.setAuthTag(Buffer.from(envelope.authTag, "base64url"));
     const plaintext = Buffer.concat([
