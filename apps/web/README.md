@@ -1,4 +1,4 @@
-# Vexa Dashboard
+# Grainbox Web
 
 ## Why
 
@@ -29,7 +29,7 @@ See Quick Start and Local Development sections below.
 
 ---
 
-Open-source web UI for [Vexa](https://github.com/Vexa-ai/vexa): join meetings, watch live transcripts, manage users/tokens, and review transcript history.
+Grainbox web is the product UI for joining meetings, watching live transcripts, managing users and tokens, and reviewing transcript history. Vexa remains the runtime integration behind the server-side adapter.
 
 Main backend repo: [Vexa](https://github.com/Vexa-ai/vexa)
 

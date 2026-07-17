@@ -32,12 +32,11 @@ export function Logo({ className, size = "md", showText = false }: LogoProps) {
     setMounted(true);
   }, []);
 
-  // Determine which logo to use based on theme
-  // Use dark logo in light mode, light logo in dark mode (inverse)
+  // Use the variant with enough contrast for the current theme.
   const currentTheme = theme === "system" ? systemTheme : theme;
   const logoSrc = currentTheme === "dark"
-    ? withBasePath("/icons/vexalight.svg")
-    : withBasePath("/icons/vexadark.svg");
+    ? withBasePath("/icons/grainbox-light.svg")
+    : withBasePath("/icons/grainbox-dark.svg");
 
   if (!mounted) {
     // Return a placeholder while theme is being determined
@@ -67,4 +66,3 @@ export function Logo({ className, size = "md", showText = false }: LogoProps) {
     </div>
   );
 }
-

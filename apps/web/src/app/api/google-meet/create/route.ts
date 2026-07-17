@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
     const vexaUser = await resolveVexaUser(userEmail);
     const tokenResult = await createUserToken(vexaUser.id);
     if (!tokenResult.success || !tokenResult.data?.token) {
-      throw new Error(tokenResult.error?.details || tokenResult.error?.message || "Could not create Vexa bot token");
+      throw new Error(tokenResult.error?.details || tokenResult.error?.message || "Could not create transcription bot token");
     }
     const botToken = tokenResult.data.token;
   const userData = vexaUser.data || {};
