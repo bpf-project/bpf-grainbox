@@ -27,6 +27,11 @@ services:
       GRAINBOX_DATA_DIR: ${GRAINBOX_DATA_DIR:-/var/lib/grainbox}
       # WebSocket URL for real-time transcript streaming
       VEXA_WS_URL: ${VEXA_WS_URL:-ws://vexa-gateway:80}
+      # Runtime transcription metadata displayed by the Grainbox UI.
+      TRANSCRIPTION_BACKEND: ${TRANSCRIPTION_BACKEND:-whisper}
+      TRANSCRIPTION_MODEL: ${TRANSCRIPTION_MODEL:-}
+      WHISPER_MODEL_SIZE: ${WHISPER_MODEL_SIZE:-base}
+      PARAKEET_MODEL_ID: ${PARAKEET_MODEL_ID:-sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8}
     extra_hosts:
       - host.docker.internal:host-gateway
     ports:

@@ -6,6 +6,7 @@ import { Settings, Menu, LogOut, User, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
 import { VersionChip } from "@/components/version-chip";
+import { TranscriptionModelBadge } from "@/components/transcription-model-badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,6 +54,7 @@ export function Header({ onMenuClick }: HeaderProps) {
             <span className="hidden sm:inline-block text-[15px] font-semibold tracking-[-0.01em] text-foreground">Grainbox</span>
           </Link>
           <VersionChip className="hidden sm:inline-flex" />
+          <TranscriptionModelBadge className="hidden lg:inline-flex" />
         </div>
 
         {/* Spacer */}

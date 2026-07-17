@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { getTranscriptionConfig } from "@/lib/transcription-config";
 
 /**
  * Public configuration endpoint that exposes runtime environment variables to the client.
@@ -46,6 +47,7 @@ export async function GET(request: NextRequest) {
   const publicApiUrl = (explicitPublicApi && !explicitPublicApi.includes('localhost'))
     ? explicitPublicApi
     : `${request.headers.get('x-forwarded-proto') || 'http'}://${host.replace(/:\d+$/, '')}:${gatewayPort}`;
+  const transcription = getTranscriptionConfig();
 
   return NextResponse.json({
     wsUrl,
@@ -56,5 +58,6 @@ export async function GET(request: NextRequest) {
     defaultBotName,
     hostedMode,
     webappUrl,
+    transcription,
   });
 }
