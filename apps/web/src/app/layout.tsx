@@ -22,13 +22,13 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: withBasePath("/icons/vexadark.svg"),
+        url: withBasePath("/icons/grainbox-dark.svg"),
         type: "image/svg+xml",
       },
     ],
     apple: [
       {
-        url: withBasePath("/icons/vexadark.svg"),
+        url: withBasePath("/icons/grainbox-dark.svg"),
         type: "image/svg+xml",
       },
     ],
