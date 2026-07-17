@@ -1,0 +1,74 @@
+name: grainbox-transcription
+
+services:
+  transcription-whisper:
+    profiles: [whisper]
+    image: grainbox/transcription-cpu:latest
+    container_name: grainbox-transcription
+    mem_limit: 4g
+    cpus: ${WHISPER_CPU_LIMIT:-10}
+    environment:
+      WORKER_ID: grainbox-cpu
+      MODEL_SIZE: ${WHISPER_MODEL_SIZE:-base}
+      DEVICE: cpu
+      COMPUTE_TYPE: int8
+      CPU_THREADS: ${WHISPER_CPU_THREADS:-12}
+      MAX_ACTIVE_REQUESTS: ${WHISPER_MAX_ACTIVE_REQUESTS:-1}
+      FAIL_FAST_WHEN_BUSY: "true"
+      API_TOKEN: ${TRANSCRIPTION_SERVICE_TOKEN:?TRANSCRIPTION_SERVICE_TOKEN is required}
+      VEXA_ENV: production
+    volumes:
+      - transcription-models:/app/models
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 180s
+    networks:
+      vexa:
+        aliases: [grainbox-transcription]
+      vexa-v012:
+        aliases: [grainbox-transcription]
+    restart: unless-stopped
+
+  transcription-parakeet:
+    profiles: [parakeet]
+    image: ${PARAKEET_IMAGE:-ghcr.io/likeablob/parakeet-api:latest}
+    container_name: grainbox-transcription
+    mem_limit: 4g
+    cpus: ${PARAKEET_CPU_LIMIT:-10}
+    environment:
+      SERVER__HOST: 0.0.0.0
+      SERVER__PORT: 8000
+      SERVER__API_KEY: ${TRANSCRIPTION_SERVICE_TOKEN:?TRANSCRIPTION_SERVICE_TOKEN is required}
+      STT__MODELS_DIR: /app/models
+      STT__SHERPA__PROVIDER: cpu
+      STT__SHERPA__NUM_THREADS: ${PARAKEET_CPU_THREADS:-12}
+      STT__SHERPA__MODEL_ID: ${PARAKEET_MODEL_ID:-sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8}
+    volumes:
+      - parakeet-models:/app/models
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 300s
+    networks:
+      vexa:
+        aliases: [grainbox-transcription]
+      vexa-v012:
+        aliases: [grainbox-transcription]
+    restart: unless-stopped
+
+networks:
+  vexa:
+    external: true
+    name: ${VEXA_DOCKER_NETWORK:-vexa_vexa}
+  vexa-v012:
+    external: true
+    name: vexa-v012-grainbox_vexa
+
+volumes:
+  transcription-models:
+  parakeet-models:
