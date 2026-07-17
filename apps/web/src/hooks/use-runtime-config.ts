@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { withBasePath } from "@/lib/base-path";
 
-interface RuntimeConfig {
+export interface RuntimeConfig {
   wsUrl: string;
   apiUrl: string;
   publicApiUrl?: string;
@@ -12,6 +12,11 @@ interface RuntimeConfig {
   authToken?: string | null;
   hostedMode?: boolean;
   webappUrl?: string;
+  transcription?: {
+    backend: string;
+    model: string;
+    label: string;
+  };
 }
 
 // Global cache to avoid refetching on every component mount

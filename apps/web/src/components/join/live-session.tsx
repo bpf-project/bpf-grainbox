@@ -15,6 +15,7 @@ import type { Platform } from "@/types/vexa";
 import { PLATFORM_CONFIG, MEETING_STATUS_CONFIG, getSpeakerColor } from "@/types/vexa";
 import { cn } from "@/lib/utils";
 import { DocsLink } from "@/components/docs/docs-link";
+import { TranscriptionModelBadge } from "@/components/transcription-model-badge";
 
 interface LiveSessionProps {
   platform: Platform;
@@ -119,6 +120,7 @@ export function LiveSession({ platform, nativeId, onEnd }: LiveSessionProps) {
                 {statusConfig.label}
               </Badge>
             )}
+            {isActive && <TranscriptionModelBadge />}
 
             {/* WebSocket Status */}
             <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
